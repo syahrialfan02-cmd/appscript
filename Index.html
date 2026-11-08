@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#006874">
+
+  <title>FinTrack - Keuangan Pribadi</title>
+  
+  <!-- Manifest & Icon untuk PWA GitHub Pages -->
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2953/2953363.png">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --primary: #006874;
+      --primary-dark: #004d56;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --danger: #ef4444;
+      --success: #10b981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background: var(--bg); color: var(--text); padding-bottom: 85px; }
+
+    .top-bar {
+      position: sticky; top: 0; z-index: 50; background: var(--primary); color: white;
+      padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;
+      box-shadow: 0 4px 12px rgba(0, 104, 116, 0.2);
+    }
+    .top-bar h1 { font-size: 18px; font-weight: 800; }
+    .sync-btn {
+      background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 14px;
+      border-radius: 20px; font-size: 12px; cursor: pointer; font-weight: 600;
+    }
+
+    .container { max-width: 550px; margin: 0 auto; padding: 14px; }
+
+    .nav-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 68px; background: white;
+      display: flex; justify-content: space-around; align-items: center; border-top: 1px solid var(--border);
+      z-index: 100; box-shadow: 0 -4px 16px rgba(0,0,0,0.04);
+    }
+    .nav-btn {
+      display: flex; flex-direction: column; align-items: center; border: none; background: none;
+      color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; gap: 4px;
+    }
+    .nav-btn.active { color: var(--primary); }
+    .nav-icon { font-size: 20px; }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 14px; border: 1px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
+    .card-title { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .balance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .balance-box { background: white; border-radius: 14px; padding: 14px; border: 1px solid var(--border); }
+    .balance-box.primary { background: linear-gradient(135deg, #006874, #004d56); color: white; border: none; }
+    .balance-label { font-size: 11px; font-weight: 600; opacity: 0.85; margin-bottom: 4px; }
+    .balance-val { font-size: 17px; font-weight: 800; }
+
+    /* Kuota Mingguan & Progress Bar */
+    .progress-bar-bg { width: 100%; height: 8px; background: #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 8px; }
+    .progress-bar-fill { height: 100%; border-radius: 6px; transition: width 0.5s ease-out; }
+    .badge-rollover { display: inline-flex; align-items: center; gap: 4px; background: #ecfdf5; color: #047857; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; margin-top: 8px; }
+
+    /* Pilihan Upload: Kamera vs Galeri */
+    .scan-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .scan-btn {
+      border: 2px dashed #80cbc4; border-radius: 14px; padding: 18px 10px; text-align: center;
+      cursor: pointer; background: #e0f2f1; transition: 0.2s;
+    }
+    .scan-btn:hover { background: #b2dfdb; }
+    .scan-btn-icon { font-size: 28px; margin-bottom: 4px; }
+    .scan-btn-text { font-size: 13px; font-weight: 700; color: var(--primary); }
+    .scan-btn-hint { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+    .preview-img { width: 100%; max-height: 200px; object-fit: contain; border-radius: 10px; margin-bottom: 12px; display: none; }
+
+    .form-group { margin-bottom: 12px; }
+    label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #475569; }
+    input, select {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; outline: none; background: #f8fafc;
+    }
+    input:focus, select:focus { border-color: var(--primary); background: white; }
+    .row { display: flex; gap: 10px; }
+    .col { flex: 1; }
+
+    .btn {
+      width: 100%; padding: 13px; border-radius: 12px; border: none; font-size: 14px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .filter-tabs { display: flex; gap: 6px; margin-bottom: 12px; background: #e2e8f0; padding: 4px; border-radius: 12px; }
+    .filter-btn {
+      flex: 1; padding: 8px 4px; border: none; background: transparent; font-size: 12px; font-weight: 600;
+      border-radius: 8px; cursor: pointer; color: var(--muted);
+    }
+    .filter-btn.active { background: white; color: var(--primary); font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+
+    /* Summary Card di Riwayat */
+    .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .summary-card { background: white; border-radius: 12px; padding: 10px 8px; border: 1px solid var(--border); text-align: center; }
+    .summary-title { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+    .summary-num { font-size: 13px; font-weight: 800; margin-top: 4px; }
+
+    .trx-item {
+      display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-radius: 12px;
+      background: white; border: 1px solid var(--border); margin-bottom: 8px;
+    }
+    .trx-info { flex: 1; }
+    .trx-title { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+    .trx-sub { font-size: 11px; color: var(--muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .trx-tag { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+    .trx-amount { text-align: right; }
+    .trx-val { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+    .trx-val.out { color: var(--danger); }
+    .trx-val.in { color: var(--success); }
+    .trx-del { color: #94a3b8; font-size: 11px; border: none; background: none; cursor: pointer; padding: 2px 4px; }
+    .trx-del:hover { color: var(--danger); }
+
+    .toast { padding: 12px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 12px; display: none; }
+    .toast.loading { background: #e0f2fe; color: #0284c7; display: block; }
+    .toast.success { background: #dcfce7; color: #16a34a; display: block; }
+    .toast.error { background: #fee2e2; color: #dc2626; display: block; }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <div>
+      <h1>FinTrack</h1>
+      <p style="font-size: 11px; opacity: 0.85;">M. Alfan Syahri</p>
+    </div>
+    <button class="sync-btn" onclick="muatUlangData()">🔄 Sinkron</button>
+  </div>
+
+  <div class="container">
+    <div id="toastBox" class="toast"></div>
+
+    <!-- 1. DASHBOARD -->
+    <div id="pageDashboard" class="page active">
+      <div class="balance-grid">
+        <div class="balance-box primary">
+          <div class="balance-label">Sisa Kas (SeaBank)</div>
+          <div class="balance-val" id="dashSisaSaldo">Rp0</div>
+        </div>
+        <div class="balance-box">
+          <div class="balance-label" style="color: var(--muted);">Saldo Terpakai YTD</div>
+          <div class="balance-val" id="dashPengeluaran" style="color: var(--danger);">Rp0</div>
+        </div>
+      </div>
+
+      <!-- KARTU KUOTA MINGGUAN -->
+      <div class="card" style="border-left: 4px solid var(--primary);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div class="card-title" style="margin-bottom: 2px;" id="labelMingguAktif">KUOTA ANGGARAN MINGGUAN</div>
+            <p style="font-size: 11px; color: var(--muted); font-weight: 600;" id="labelRentangPekan">Senin – Minggu</p>
+          </div>
+          <span style="font-size: 12px; font-weight: 700; color: var(--primary);" id="textPersenPakai">0%</span>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 10px;">
+          <div>
+            <div style="font-size: 22px; font-weight: 800;" id="valSisaMingguan">Rp0</div>
+            <p style="font-size: 11px; color: var(--muted); margin-top: 2px;">Sisa kuota aman dibelanjakan</p>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 13px; font-weight: 700; color: var(--text);" id="valTotalJatah">Rp0</div>
+            <p style="font-size: 11px; color: var(--muted); margin-top: 2px;">Total Jatah Pekan Ini</p>
+          </div>
+        </div>
+
+        <div class="progress-bar-bg">
+          <div id="barMingguan" class="progress-bar-fill" style="width: 0%; background: var(--primary);"></div>
+        </div>
+
+        <!-- Keterangan Sisa Minggu Lalu -->
+        <div id="boxRollover" class="badge-rollover" style="display: none;">
+          ✨ Termasuk sisa pekan lalu: <span id="valSisaLalu">+Rp0</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Kekayaan Bersih (Net Worth)</div>
+        <div style="font-size: 22px; font-weight: 800; color: var(--primary);" id="dashNetWorth">Rp0</div>
+        <p style="font-size: 12px; color: var(--muted); margin-top: 3px;">Total Seluruh Aset Riil - Total Kewajiban Utang</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Grafik Perbandingan Keuangan</div>
+        <div style="height: 210px;">
+          <canvas id="chartDashboard"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. RIWAYAT -->
+    <div id="pageRiwayat" class="page">
+      <div class="filter-tabs">
+        <button class="filter-btn active" onclick="setFilter('semua', this)">Semua</button>
+        <button class="filter-btn" onclick="setFilter('mingguan', this)">Mingguan</button>
+        <button class="filter-btn" onclick="setFilter('bulanan', this)">Bulanan</button>
+        <button class="filter-btn" onclick="setFilter('tahunan', this)">Tahunan</button>
+      </div>
+
+      <!-- Ringkasan Filter: Masuk, Keluar, dan Sisa -->
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-title">Pemasukan</div>
+          <div class="summary-num" style="color: var(--success);" id="filterInNominal">Rp0</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-title">Pengeluaran</div>
+          <div class="summary-num" style="color: var(--danger);" id="filterOutNominal">Rp0</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-title">Arus Bersih</div>
+          <div class="summary-num" style="color: var(--primary);" id="filterNetNominal">Rp0</div>
+        </div>
+      </div>
+
+      <div class="card-title" style="margin-top: 10px;">Daftar Transaksi</div>
+      <div id="listTransaksi">
+        <p style="text-align: center; color: var(--muted); font-size: 13px; padding: 20px;">Memuat riwayat transaksi...</p>
+      </div>
+    </div>
+
+    <!-- 3. SCAN NOTA (Kamera vs Galeri) -->
+    <div id="pageUpload" class="page">
+      <div class="card">
+        <div class="card-title">Input Nota & Struk Otomatis</div>
+        
+        <!-- Pilihan Kamera atau Galeri -->
+        <div class="scan-options">
+          <div class="scan-btn" onclick="document.getElementById('inputKameraLangsung').click()">
+            <div class="scan-btn-icon">📸</div>
+            <div class="scan-btn-text">Buka Kamera</div>
+            <div class="scan-btn-hint">Foto struk langsung</div>
+            <input type="file" id="inputKameraLangsung" accept="image/*" capture="environment" style="display:none;" onchange="prosesPilihBerkas(event)">
+          </div>
+
+          <div class="scan-btn" onclick="document.getElementById('inputPilihGaleri').click()">
+            <div class="scan-btn-icon">🖼️</div>
+            <div class="scan-btn-text">Pilih dari Galeri</div>
+            <div class="scan-btn-hint">Upload foto nota tersimpan</div>
+            <input type="file" id="inputPilihGaleri" accept="image/*" style="display:none;" onchange="prosesPilihBerkas(event)">
+          </div>
+        </div>
+
+        <img id="imgPreviewNota" class="preview-img" alt="Pratinjau Nota">
+
+        <!-- Form Terisi Otomatis (Bisa Diedit) -->
+        <form id="formInputTransaksi" onsubmit="simpanDataManual(event)">
+          <div class="row">
+            <div class="form-group col">
+              <label>Tanggal Transaksi</label>
+              <input type="date" id="inTanggal" required>
+            </div>
+            <div class="form-group col">
+              <label>Jumlah Nominal (Rp)</label>
+              <input type="number" id="inJumlah" placeholder="0" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Nama Merchant / Tempat Pembelian</label>
+            <input type="text" id="inDeskripsi" placeholder="Contoh: Indomaret / Kedai Kopi" required>
+          </div>
+
+          <div class="row">
+            <div class="form-group col">
+              <label>Pos Anggaran</label>
+              <select id="inPosAnggaran">
+                <option value="Uang Pegangan">Uang Pegangan</option>
+                <option value="Makanan & Minuman">Makanan & Minuman</option>
+                <option value="Kebutuhan Pokok">Kebutuhan Pokok</option>
+                <option value="Transportasi">Transportasi</option>
+                <option value="Hiburan & Lifestyle">Hiburan & Lifestyle</option>
+                <option value="Kewajiban Ortu & Adek">Kewajiban Ortu & Adek</option>
+                <option value="Operasional Lainnya">Operasional Lainnya</option>
+              </select>
+            </div>
+            <div class="form-group col">
+              <label>Metode Akun</label>
+              <select id="inMetode">
+                <option value="SeaBank">SeaBank</option>
+                <option value="Bank Jago">Bank Jago</option>
+                <option value="GoPay">GoPay</option>
+                <option value="BCA">BCA</option>
+                <option value="ShopeePay">ShopeePay</option>
+                <option value="Tunai">Tunai</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Sub-Kategori / Detail</label>
+            <input type="text" id="inSubKategori" placeholder="Contoh: Makan siang / Bensin">
+          </div>
+
+          <button type="submit" id="btnSimpan" class="btn btn-primary">
+            💾 Simpan ke Google Sheets
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 4. LAPORAN -->
+    <div id="pageLaporan" class="page">
+      <div class="card">
+        <div class="card-title">Perbandingan Arus Kas (Riil Masuk vs Keluar)</div>
+        <div style="height: 200px;">
+          <canvas id="chartArusKas"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Distribusi Portofolio Aset</div>
+        <div style="height: 200px;">
+          <canvas id="chartPortofolio"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Komposisi Pengeluaran per Kategori</div>
+        <div style="height: 200px;">
+          <canvas id="chartKategori"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Evaluasi Kuota Mingguan (Jatah vs Realisasi)</div>
+        <div style="height: 200px;">
+          <canvas id="chartMingguan"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-bar">
+    <button class="nav-btn active" onclick="switchPage('pageDashboard', this)">
+      <span class="nav-icon">📊</span>
+      <span>Dashboard</span>
+    </button>
+    <button class="nav-btn" onclick="switchPage('pageRiwayat', this)">
+      <span class="nav-icon">📜</span>
+      <span>Riwayat</span>
+    </button>
+    <button class="nav-btn" onclick="switchPage('pageUpload', this)">
+      <span class="nav-icon">➕</span>
+      <span>Scan Nota</span>
+    </button>
+    <button class="nav-btn" onclick="switchPage('pageLaporan', this)">
+      <span class="nav-icon">📈</span>
+      <span>Laporan</span>
+    </button>
+  </div>
+
+  <script>
+    // URL Web App Google Apps Script kamu
+    const API_URL = "https://script.google.com/macros/s/AKfycbzSOt7JaZIf9KY8HHhoqyUjGce1-qT6ld-dVAB4uODpOgxGTh3oSnTkX7GuF_lryHoR/exec";
+
+    // Registrasi Service Worker untuk PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(function(err) {
+          console.log("SW Reg fail (abaikan jika di dalam Apps Script iframe):", err);
+        });
+      });
+    }
+
+    var globalTransaksi = [];
+    var globalDashboard = null;
+    var activeFilter = 'semua';
+    var chartDashInstance = null;
+    var chartArusInstance = null;
+    var chartPortoInstance = null;
+    var chartKatInstance = null;
+    var chartMingguanInstance = null;
+
+    document.getElementById('inTanggal').value = new Date().toISOString().split('T')[0];
+
+    function showToast(msg, type) {
+      var box = document.getElementById('toastBox');
+      box.textContent = msg;
+      box.className = 'toast ' + type;
+      if (type !== 'loading') {
+        setTimeout(function() { box.className = 'toast'; }, 4000);
+      }
+    }
+
+    function formatRupiah(num) {
+      return "Rp" + Number(num || 0).toLocaleString('id-ID');
+    }
+
+    function switchPage(pageId, btn) {
+      var pages = document.querySelectorAll('.page');
+      for (var i = 0; i < pages.length; i++) pages[i].classList.remove('active');
+      
+      var navBtns = document.querySelectorAll('.nav-btn');
+      for (var j = 0; j < navBtns.length; j++) navBtns[j].classList.remove('active');
+
+      document.getElementById(pageId).classList.add('active');
+      btn.classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      if (pageId === 'pageLaporan' && globalDashboard) {
+        setTimeout(function() {
+          renderLaporanChart(globalDashboard);
+          renderKategoriChart();
+          if (globalDashboard.mingguan) {
+            renderGrafikMingguan(globalDashboard.mingguan.evaluasi);
+          }
+        }, 150);
+      }
+    }
+
+    // Adaptor Komunikasi: Mendukung PWA GitHub Pages (fetch) dan Google Apps Script (google.script.run)
+    function panggilBackend(aksi, data, onSuccess, onError) {
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        if (aksi === 'dashboard') {
+          google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onError).ambilDataDashboard();
+        } else if (aksi === 'transaksi') {
+          google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onError).ambilSemuaTransaksi();
+        } else if (aksi === 'simpan') {
+          google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onError).simpanTransaksi(data);
+        } else if (aksi === 'hapus') {
+          google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onError).hapusTransaksi(data.sheetName, data.rowIndex);
+        } else if (aksi === 'ocr') {
+          google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onError).prosesFotoNota(data.base64Data, data.mimeType);
+        }
+      } else {
+        // Mode Standalone PWA GitHub Pages via Fetch
+        if (aksi === 'dashboard' || aksi === 'transaksi') {
+          fetch(API_URL + "?action=" + aksi)
+            .then(function(res) { return res.json(); })
+            .then(onSuccess)
+            .catch(onError);
+        } else {
+          fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify(Object.assign({ action: aksi }, data))
+          })
+            .then(function(res) { return res.json(); })
+            .then(onSuccess)
+            .catch(onError);
+        }
+      }
+    }
+
+    function muatUlangData() {
+      showToast("Menyinkronkan data dengan Google Sheets...", "loading");
+
+      panggilBackend('dashboard', null, function(res) {
+        if (res && res.success) {
+          globalDashboard = res;
+          document.getElementById('dashSisaSaldo').textContent = formatRupiah(res.saldoSeaBank);
+          document.getElementById('dashPengeluaran').textContent = formatRupiah(res.totalPengeluaran);
+          document.getElementById('dashNetWorth').textContent = formatRupiah(res.netWorth);
+
+          if (res.mingguan) {
+            document.getElementById('labelMingguAktif').textContent = 'KUOTA PEKAN KE-' + res.mingguan.mingguKe;
+            if (res.mingguan.infoRentang) {
+              document.getElementById('labelRentangPekan').textContent = res.mingguan.infoRentang;
+            }
+            document.getElementById('valSisaMingguan').textContent = formatRupiah(res.mingguan.sisaSaatIni);
+            document.getElementById('valTotalJatah').textContent = formatRupiah(res.mingguan.totalJatah);
+            document.getElementById('textPersenPakai').textContent = res.mingguan.persenPakai + '% terpakai';
+
+            var bar = document.getElementById('barMingguan');
+            bar.style.width = res.mingguan.persenPakai + '%';
+            if (res.mingguan.persenPakai > 90) bar.style.background = 'var(--danger)';
+            else if (res.mingguan.persenPakai > 70) bar.style.background = '#f59e0b';
+            else bar.style.background = 'var(--primary)';
+
+            var boxRollover = document.getElementById('boxRollover');
+            if (res.mingguan.sisaLalu > 0) {
+              boxRollover.style.display = 'inline-flex';
+              document.getElementById('valSisaLalu').textContent = '+' + formatRupiah(res.mingguan.sisaLalu);
+            } else {
+              boxRollover.style.display = 'none';
+            }
+          }
+
+          renderDashboardChart(res);
+          renderLaporanChart(res);
+          if (res.mingguan) {
+            renderGrafikMingguan(res.mingguan.evaluasi);
+          }
+        }
+      }, function(err) {
+        showToast("Gagal dashboard: " + err, "error");
+      });
+
+      panggilBackend('transaksi', null, function(res) {
+        if (res && res.success) {
+          globalTransaksi = res.data;
+          applyFilter();
+          renderKategoriChart();
+          showToast("Data terbaru berhasil dimuat!", "success");
+        } else {
+          showToast("Gagal memuat transaksi", "error");
+        }
+      }, function(err) {
+        showToast("Gagal transaksi: " + err, "error");
+      });
+    }
+
+    window.onload = muatUlangData;
+
+    function setFilter(tipe, btn) {
+      activeFilter = tipe;
+      var filterBtns = document.querySelectorAll('.filter-btn');
+      for (var i = 0; i < filterBtns.length; i++) filterBtns[i].classList.remove('active');
+      btn.classList.add('active');
+      applyFilter();
+    }
+
+    function applyFilter() {
+      var now = new Date();
+      var filtered = [];
+
+      if (activeFilter === 'mingguan') {
+        var tujuhHariLalu = new Date();
+        tujuhHariLalu.setDate(now.getDate() - 7);
+        filtered = globalTransaksi.filter(function(t) { return new Date(t.tanggal) >= tujuhHariLalu; });
+      } else if (activeFilter === 'bulanan') {
+        var blnIni = now.getMonth();
+        var thnIni = now.getFullYear();
+        filtered = globalTransaksi.filter(function(t) {
+          var d = new Date(t.tanggal);
+          return d.getMonth() === blnIni && d.getFullYear() === thnIni;
+        });
+      } else if (activeFilter === 'tahunan') {
+        var thn = now.getFullYear();
+        filtered = globalTransaksi.filter(function(t) { return new Date(t.tanggal).getFullYear() === thn; });
+      } else {
+        filtered = globalTransaksi;
+      }
+
+      var totalIn = 0;
+      var totalOut = 0;
+
+      for (var k = 0; k < filtered.length; k++) {
+        var jml = Number(filtered[k].jumlah) || 0;
+        if (filtered[k].jenis === "Pemasukan") {
+          totalIn += jml;
+        } else {
+          totalOut += jml;
+        }
+      }
+
+      document.getElementById('filterInNominal').textContent = formatRupiah(totalIn);
+      document.getElementById('filterOutNominal').textContent = formatRupiah(totalOut);
+      document.getElementById('filterNetNominal').textContent = formatRupiah(totalIn - totalOut);
+
+      var list = document.getElementById('listTransaksi');
+      if (filtered.length === 0) {
+        list.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:20px; font-size:13px;">Tidak ada transaksi di periode ini.</p>';
+        return;
+      }
+
+      var html = '';
+      for (var i = 0; i < filtered.length; i++) {
+        var t = filtered[i];
+        var isPemasukan = (t.jenis === "Pemasukan");
+        var valClass = isPemasukan ? "trx-val in" : "trx-val out";
+        var prefix = isPemasukan ? "+" : "-";
+
+        html += '<div class="trx-item">' +
+          '<div class="trx-info">' +
+            '<div class="trx-title">' + t.deskripsi + '</div>' +
+            '<div class="trx-sub">' +
+              '<span>📅 ' + t.tanggal + '</span>' +
+              '<span class="trx-tag">' + t.posAnggaran + '</span>' +
+              '<span class="trx-tag" style="background:#e0f2fe; color:#0369a1;">' + t.metode + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="trx-amount">' +
+            '<div class="' + valClass + '">' + prefix + formatRupiah(t.jumlah) + '</div>';
+
+        if (!isPemasukan) {
+          html += '<button class="trx-del" onclick="konfirmasiHapus(\'' + t.sheetName + '\', ' + t.rowIndex + ', \'' + t.deskripsi.replace(/'/g, "\\'") + '\')">🗑️ Hapus</button>';
+        }
+
+        html += '</div></div>';
+      }
+      list.innerHTML = html;
+    }
+
+    function konfirmasiHapus(sheetName, rowIndex, nama) {
+      if (confirm("Hapus transaksi '" + nama + "' dari sheet " + sheetName + "?")) {
+        showToast("Menghapus data...", "loading");
+        panggilBackend('hapus', { sheetName: sheetName, rowIndex: rowIndex }, function(res) {
+          if (res && res.success) {
+            showToast(res.message, "success");
+            muatUlangData();
+          } else {
+            showToast("Gagal: " + res.message, "error");
+          }
+        }, function(err) {
+          showToast("Error: " + err, "error");
+        });
+      }
+    }
+
+    function prosesPilihBerkas(event) {
+      var file = event.target.files[0];
+      if (!file) return;
+
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var img = document.getElementById('imgPreviewNota');
+        img.src = e.target.result;
+        img.style.display = 'block';
+
+        var base64Data = e.target.result.split(',')[1];
+        showToast("AI Gemini sedang membaca nota & mengisi form...", "loading");
+        document.getElementById('btnSimpan').disabled = true;
+
+        panggilBackend('ocr', { base64Data: base64Data, mimeType: file.type }, function(res) {
+          document.getElementById('btnSimpan').disabled = false;
+          if (res && res.success && res.data) {
+            showToast("Nota terbaca! Silakan periksa kolom di bawah sebelum menyimpan.", "success");
+            if (res.data.tanggal) document.getElementById('inTanggal').value = res.data.tanggal;
+            if (res.data.jumlah) document.getElementById('inJumlah').value = res.data.jumlah;
+            if (res.data.deskripsi) document.getElementById('inDeskripsi').value = res.data.deskripsi;
+            if (res.data.subKategori) document.getElementById('inSubKategori').value = res.data.subKategori;
+            if (res.data.posAnggaran) document.getElementById('inPosAnggaran').value = res.data.posAnggaran;
+            if (res.data.metode) document.getElementById('inMetode').value = res.data.metode;
+          } else {
+            showToast(res.message || "Silakan cek data manual.", "error");
+          }
+        }, function(err) {
+          document.getElementById('btnSimpan').disabled = false;
+          showToast("Gagal membaca nota: " + err, "error");
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function simpanDataManual(event) {
+      event.preventDefault();
+      var btn = document.getElementById('btnSimpan');
+      btn.disabled = true;
+      showToast("Menyimpan ke Google Sheets...", "loading");
+
+      var data = {
+        tanggal: document.getElementById('inTanggal').value,
+        jumlah: document.getElementById('inJumlah').value,
+        deskripsi: document.getElementById('inDeskripsi').value,
+        posAnggaran: document.getElementById('inPosAnggaran').value,
+        subKategori: document.getElementById('inSubKategori').value,
+        metode: document.getElementById('inMetode').value,
+        jenis: "Pengeluaran"
+      };
+
+      panggilBackend('simpan', { data: data }, function(res) {
+        btn.disabled = false;
+        if (res && res.success) {
+          showToast(res.message, "success");
+          document.getElementById('inDeskripsi').value = '';
+          document.getElementById('inSubKategori').value = '';
+          document.getElementById('inJumlah').value = '';
+          document.getElementById('imgPreviewNota').style.display = 'none';
+          muatUlangData();
+        } else {
+          showToast(res.message, "error");
+        }
+      }, function(err) {
+        btn.disabled = false;
+        showToast("Koneksi gagal: " + err, "error");
+      });
+    }
+
+    function renderDashboardChart(data) {
+      var ctx = document.getElementById('chartDashboard').getContext('2d');
+      if (chartDashInstance) chartDashInstance.destroy();
+
+      chartDashInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Pemasukan Riil', 'Pengeluaran Aktual', 'Kas SeaBank'],
+          datasets: [{
+            data: [data.totalPemasukan, data.totalPengeluaran, data.saldoSeaBank],
+            backgroundColor: ['#0284c7', '#ef4444', '#006874'],
+            borderRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { ticks: { callback: function(v) { return 'Rp' + (v/1000).toLocaleString() + 'k'; } } } }
+        }
+      });
+    }
+
+    function renderLaporanChart(data) {
+      var ctxArus = document.getElementById('chartArusKas').getContext('2d');
+      if (chartArusInstance) chartArusInstance.destroy();
+
+      chartArusInstance = new Chart(ctxArus, {
+        type: 'doughnut',
+        data: {
+          labels: ['Pemasukan Riil Diterima', 'Pengeluaran Aktual'],
+          datasets: [{
+            data: [data.totalPemasukan, data.totalPengeluaran],
+            backgroundColor: ['#00838f', '#ef4444'],
+            hoverOffset: 6
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      if (data.portofolio && data.portofolio.length > 0) {
+        var ctxPorto = document.getElementById('chartPortofolio').getContext('2d');
+        if (chartPortoInstance) chartPortoInstance.destroy();
+
+        chartPortoInstance = new Chart(ctxPorto, {
+          type: 'pie',
+          data: {
+            labels: data.portofolio.map(function(p) { return p.nama; }),
+            datasets: [{
+              data: data.portofolio.map(function(p) { return p.nilai; }),
+              backgroundColor: ['#006874', '#0284c7', '#f59e0b', '#10b981'],
+              hoverOffset: 6
+            }]
+          },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+      }
+    }
+
+    function renderKategoriChart() {
+      var kategoriMap = {};
+      var adaPengeluaran = false;
+
+      for (var i = 0; i < globalTransaksi.length; i++) {
+        var t = globalTransaksi[i];
+        if (t.jenis !== "Pemasukan") {
+          var k = t.posAnggaran || "Uang Pegangan";
+          var nominal = Number(t.jumlah) || 0;
+          kategoriMap[k] = (kategoriMap[k] || 0) + nominal;
+          adaPengeluaran = true;
+        }
+      }
+
+      if (!adaPengeluaran) return;
+
+      var ctxKat = document.getElementById('chartKategori').getContext('2d');
+      if (chartKatInstance) chartKatInstance.destroy();
+
+      chartKatInstance = new Chart(ctxKat, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(kategoriMap),
+          datasets: [{
+            data: Object.values(kategoriMap),
+            backgroundColor: ['#f43f5e', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#64748b'],
+            hoverOffset: 6
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+    }
+
+    function renderGrafikMingguan(evaluasi) {
+      if (!evaluasi) return;
+      var ctxMgg = document.getElementById('chartMingguan').getContext('2d');
+      if (chartMingguanInstance) chartMingguanInstance.destroy();
+
+      chartMingguanInstance = new Chart(ctxMgg, {
+        type: 'bar',
+        data: {
+          labels: evaluasi.map(function(e) { return e.minggu; }),
+          datasets: [
+            {
+              label: 'Total Jatah (+Sisa)',
+              data: evaluasi.map(function(e) { return e.totalJatah || e.jatah; }),
+              backgroundColor: '#e2e8f0',
+              borderRadius: 6
+            },
+            {
+              label: 'Realisasi Belanja',
+              data: evaluasi.map(function(e) { return e.terpakai; }),
+              backgroundColor: '#006874',
+              borderRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { ticks: { callback: function(v) { return 'Rp' + (v/1000).toLocaleString() + 'k'; } } }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
