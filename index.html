@@ -10,7 +10,6 @@
 
   <title>FinTrack - Keuangan Pribadi</title>
   
-  <!-- Manifest & Icon untuk PWA GitHub Pages -->
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2953/2953363.png">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -68,12 +67,10 @@
     .balance-label { font-size: 11px; font-weight: 600; opacity: 0.85; margin-bottom: 4px; }
     .balance-val { font-size: 17px; font-weight: 800; }
 
-    /* Kuota Mingguan & Progress Bar */
     .progress-bar-bg { width: 100%; height: 8px; background: #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 8px; }
     .progress-bar-fill { height: 100%; border-radius: 6px; transition: width 0.5s ease-out; }
     .badge-rollover { display: inline-flex; align-items: center; gap: 4px; background: #ecfdf5; color: #047857; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; margin-top: 8px; }
 
-    /* Pilihan Upload: Kamera vs Galeri */
     .scan-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
     .scan-btn {
       border: 2px dashed #80cbc4; border-radius: 14px; padding: 18px 10px; text-align: center;
@@ -110,7 +107,6 @@
     }
     .filter-btn.active { background: white; color: var(--primary); font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
 
-    /* Summary Card di Riwayat */
     .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
     .summary-card { background: white; border-radius: 12px; padding: 10px 8px; border: 1px solid var(--border); text-align: center; }
     .summary-title { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
@@ -163,7 +159,6 @@
         </div>
       </div>
 
-      <!-- KARTU KUOTA MINGGUAN -->
       <div class="card" style="border-left: 4px solid var(--primary);">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div>
@@ -188,7 +183,6 @@
           <div id="barMingguan" class="progress-bar-fill" style="width: 0%; background: var(--primary);"></div>
         </div>
 
-        <!-- Keterangan Sisa Minggu Lalu -->
         <div id="boxRollover" class="badge-rollover" style="display: none;">
           ✨ Termasuk sisa pekan lalu: <span id="valSisaLalu">+Rp0</span>
         </div>
@@ -217,7 +211,6 @@
         <button class="filter-btn" onclick="setFilter('tahunan', this)">Tahunan</button>
       </div>
 
-      <!-- Ringkasan Filter: Masuk, Keluar, dan Sisa -->
       <div class="summary-grid">
         <div class="summary-card">
           <div class="summary-title">Pemasukan</div>
@@ -239,12 +232,11 @@
       </div>
     </div>
 
-    <!-- 3. SCAN NOTA (Kamera vs Galeri) -->
+    <!-- 3. SCAN NOTA -->
     <div id="pageUpload" class="page">
       <div class="card">
         <div class="card-title">Input Nota & Struk Otomatis</div>
         
-        <!-- Pilihan Kamera atau Galeri -->
         <div class="scan-options">
           <div class="scan-btn" onclick="document.getElementById('inputKameraLangsung').click()">
             <div class="scan-btn-icon">📸</div>
@@ -263,7 +255,6 @@
 
         <img id="imgPreviewNota" class="preview-img" alt="Pratinjau Nota">
 
-        <!-- Form Terisi Otomatis (Bisa Diedit) -->
         <form id="formInputTransaksi" onsubmit="simpanDataManual(event)">
           <div class="row">
             <div class="form-group col">
@@ -371,14 +362,14 @@
   </div>
 
   <script>
-    // URL Web App Google Apps Script kamu
-    const API_URL = "https://script.google.com/macros/s/AKfycbxh5HVBZeGmtUbqrL8UnQVmyLUrd3jQfHnsIEwqLhoS00TpGJmu_SNyfhGQ5pHKazNB-A/exec";
+    // URL Endpoint Backend Apps Script Baru
+    const API_URL = "https://script.google.com/macros/s/AKfycbw76cT3cRn2tZp-I0EmDPDMTppcoPez6ZeYyO9WBmKLf7ODfTH3LcBUKBb8-S6DiYiB8Q/exec";
 
-    // Registrasi Service Worker untuk PWA
+    // Registrasi Service Worker PWA
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
         navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(function(err) {
-          console.log("SW Reg fail (abaikan jika di dalam Apps Script iframe):", err);
+          console.log("SW Reg:", err);
         });
       });
     }
@@ -429,43 +420,32 @@
       }
     }
 
-    // Adaptor Komunikasi: Mendukung PWA GitHub Pages (fetch) dan Google Apps Script (google.script.run)
-    function panggilBackend(aksi, data, onSuccess, onError) {
-      if (typeof google !== 'undefined' && google.script && google.script.run) {
-        if (aksi === 'dashboard') {
-          google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onError).ambilDataDashboard();
-        } else if (aksi === 'transaksi') {
-          google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onError).ambilSemuaTransaksi();
-        } else if (aksi === 'simpan') {
-          google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onError).simpanTransaksi(data);
-        } else if (aksi === 'hapus') {
-          google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onError).hapusTransaksi(data.sheetName, data.rowIndex);
-        } else if (aksi === 'ocr') {
-          google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onError).prosesFotoNota(data.base64Data, data.mimeType);
-        }
+    // Adaptor fetch dengan mode redirect otomatis
+    function panggilAPI(aksi, payload, onSuccess, onError) {
+      if (aksi === 'dashboard' || aksi === 'transaksi') {
+        fetch(API_URL + "?action=" + aksi, {
+          method: "GET",
+          redirect: "follow"
+        })
+          .then(function(res) { return res.json(); })
+          .then(onSuccess)
+          .catch(onError);
       } else {
-        // Mode Standalone PWA GitHub Pages via Fetch
-        if (aksi === 'dashboard' || aksi === 'transaksi') {
-          fetch(API_URL + "?action=" + aksi)
-            .then(function(res) { return res.json(); })
-            .then(onSuccess)
-            .catch(onError);
-        } else {
-          fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify(Object.assign({ action: aksi }, data))
-          })
-            .then(function(res) { return res.json(); })
-            .then(onSuccess)
-            .catch(onError);
-        }
+        fetch(API_URL, {
+          method: 'POST',
+          redirect: "follow",
+          body: JSON.stringify(Object.assign({ action: aksi }, payload))
+        })
+          .then(function(res) { return res.json(); })
+          .then(onSuccess)
+          .catch(onError);
       }
     }
 
     function muatUlangData() {
       showToast("Menyinkronkan data dengan Google Sheets...", "loading");
 
-      panggilBackend('dashboard', null, function(res) {
+      panggilAPI('dashboard', null, function(res) {
         if (res && res.success) {
           globalDashboard = res;
           document.getElementById('dashSisaSaldo').textContent = formatRupiah(res.saldoSeaBank);
@@ -506,7 +486,7 @@
         showToast("Gagal dashboard: " + err, "error");
       });
 
-      panggilBackend('transaksi', null, function(res) {
+      panggilAPI('transaksi', null, function(res) {
         if (res && res.success) {
           globalTransaksi = res.data;
           applyFilter();
@@ -557,11 +537,8 @@
 
       for (var k = 0; k < filtered.length; k++) {
         var jml = Number(filtered[k].jumlah) || 0;
-        if (filtered[k].jenis === "Pemasukan") {
-          totalIn += jml;
-        } else {
-          totalOut += jml;
-        }
+        if (filtered[k].jenis === "Pemasukan") totalIn += jml;
+        else totalOut += jml;
       }
 
       document.getElementById('filterInNominal').textContent = formatRupiah(totalIn);
@@ -605,7 +582,7 @@
     function konfirmasiHapus(sheetName, rowIndex, nama) {
       if (confirm("Hapus transaksi '" + nama + "' dari sheet " + sheetName + "?")) {
         showToast("Menghapus data...", "loading");
-        panggilBackend('hapus', { sheetName: sheetName, rowIndex: rowIndex }, function(res) {
+        panggilAPI('hapus', { sheetName: sheetName, rowIndex: rowIndex }, function(res) {
           if (res && res.success) {
             showToast(res.message, "success");
             muatUlangData();
@@ -632,7 +609,7 @@
         showToast("AI Gemini sedang membaca nota & mengisi form...", "loading");
         document.getElementById('btnSimpan').disabled = true;
 
-        panggilBackend('ocr', { base64Data: base64Data, mimeType: file.type }, function(res) {
+        panggilAPI('ocr', { base64Data: base64Data, mimeType: file.type }, function(res) {
           document.getElementById('btnSimpan').disabled = false;
           if (res && res.success && res.data) {
             showToast("Nota terbaca! Silakan periksa kolom di bawah sebelum menyimpan.", "success");
@@ -669,7 +646,7 @@
         jenis: "Pengeluaran"
       };
 
-      panggilBackend('simpan', { data: data }, function(res) {
+      panggilAPI('simpan', { data: data }, function(res) {
         btn.disabled = false;
         if (res && res.success) {
           showToast(res.message, "success");
