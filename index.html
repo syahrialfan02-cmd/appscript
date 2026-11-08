@@ -140,7 +140,7 @@
       <h1>FinTrack</h1>
       <p style="font-size: 11px; opacity: 0.85;">M. Alfan Syahri</p>
     </div>
-    <button class="sync-btn" onclick="muatUlangData()">🔄 Sinkron</button>
+    <button class="sync-btn" onclick="muatUlangData(true)">🔄 Sinkron</button>
   </div>
 
   <div class="container">
@@ -232,7 +232,7 @@
       </div>
     </div>
 
-    <!-- 3. SCAN NOTA -->
+    <!-- 3. SCAN NOTA (DENGAN AUTO-COMPRESSION) -->
     <div id="pageUpload" class="page">
       <div class="card">
         <div class="card-title">Input Nota & Struk Otomatis</div>
@@ -362,10 +362,8 @@
   </div>
 
   <script>
-    // URL Endpoint Backend Apps Script Baru
-    const API_URL = "https://script.google.com/macros/s/AKfycbw76cT3cRn2tZp-I0EmDPDMTppcoPez6ZeYyO9WBmKLf7ODfTH3LcBUKBb8-S6DiYiB8Q/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbxnzT-4gJl-_oP80V1pELL4McUyQh4QHDrqVxAUchppKV-mSZRGJgbVve1ifAVfmq1XPQ/exec";
 
-    // Registrasi Service Worker PWA
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
         navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(function(err) {
@@ -390,7 +388,7 @@
       box.textContent = msg;
       box.className = 'toast ' + type;
       if (type !== 'loading') {
-        setTimeout(function() { box.className = 'toast'; }, 4000);
+        setTimeout(function() { box.className = 'toast'; }, 3500);
       }
     }
 
@@ -416,13 +414,12 @@
           if (globalDashboard.mingguan) {
             renderGrafikMingguan(globalDashboard.mingguan.evaluasi);
           }
-        }, 150);
+        }, 100);
       }
     }
 
-    // Adaptor fetch dengan mode redirect otomatis
     function panggilAPI(aksi, payload, onSuccess, onError) {
-      if (aksi === 'dashboard' || aksi === 'transaksi') {
+      if (aksi === 'init' || aksi === 'dashboard' || aksi === 'transaksi') {
         fetch(API_URL + "?action=" + aksi, {
           method: "GET",
           redirect: "follow"
@@ -442,65 +439,83 @@
       }
     }
 
-    function muatUlangData() {
-      showToast("Menyinkronkan data dengan Google Sheets...", "loading");
+    function renderUIDashboard(res) {
+      document.getElementById('dashSisaSaldo').textContent = formatRupiah(res.saldoSeaBank);
+      document.getElementById('dashPengeluaran').textContent = formatRupiah(res.totalPengeluaran);
+      document.getElementById('dashNetWorth').textContent = formatRupiah(res.netWorth);
 
-      panggilAPI('dashboard', null, function(res) {
-        if (res && res.success) {
-          globalDashboard = res;
-          document.getElementById('dashSisaSaldo').textContent = formatRupiah(res.saldoSeaBank);
-          document.getElementById('dashPengeluaran').textContent = formatRupiah(res.totalPengeluaran);
-          document.getElementById('dashNetWorth').textContent = formatRupiah(res.netWorth);
-
-          if (res.mingguan) {
-            document.getElementById('labelMingguAktif').textContent = 'KUOTA PEKAN KE-' + res.mingguan.mingguKe;
-            if (res.mingguan.infoRentang) {
-              document.getElementById('labelRentangPekan').textContent = res.mingguan.infoRentang;
-            }
-            document.getElementById('valSisaMingguan').textContent = formatRupiah(res.mingguan.sisaSaatIni);
-            document.getElementById('valTotalJatah').textContent = formatRupiah(res.mingguan.totalJatah);
-            document.getElementById('textPersenPakai').textContent = res.mingguan.persenPakai + '% terpakai';
-
-            var bar = document.getElementById('barMingguan');
-            bar.style.width = res.mingguan.persenPakai + '%';
-            if (res.mingguan.persenPakai > 90) bar.style.background = 'var(--danger)';
-            else if (res.mingguan.persenPakai > 70) bar.style.background = '#f59e0b';
-            else bar.style.background = 'var(--primary)';
-
-            var boxRollover = document.getElementById('boxRollover');
-            if (res.mingguan.sisaLalu > 0) {
-              boxRollover.style.display = 'inline-flex';
-              document.getElementById('valSisaLalu').textContent = '+' + formatRupiah(res.mingguan.sisaLalu);
-            } else {
-              boxRollover.style.display = 'none';
-            }
-          }
-
-          renderDashboardChart(res);
-          renderLaporanChart(res);
-          if (res.mingguan) {
-            renderGrafikMingguan(res.mingguan.evaluasi);
-          }
+      if (res.mingguan) {
+        document.getElementById('labelMingguAktif').textContent = 'KUOTA PEKAN KE-' + res.mingguan.mingguKe;
+        if (res.mingguan.infoRentang) {
+          document.getElementById('labelRentangPekan').textContent = res.mingguan.infoRentang;
         }
-      }, function(err) {
-        showToast("Gagal dashboard: " + err, "error");
-      });
+        document.getElementById('valSisaMingguan').textContent = formatRupiah(res.mingguan.sisaSaatIni);
+        document.getElementById('valTotalJatah').textContent = formatRupiah(res.mingguan.totalJatah);
+        document.getElementById('textPersenPakai').textContent = res.mingguan.persenPakai + '% terpakai';
 
-      panggilAPI('transaksi', null, function(res) {
-        if (res && res.success) {
-          globalTransaksi = res.data;
+        var bar = document.getElementById('barMingguan');
+        bar.style.width = res.mingguan.persenPakai + '%';
+        if (res.mingguan.persenPakai > 90) bar.style.background = 'var(--danger)';
+        else if (res.mingguan.persenPakai > 70) bar.style.background = '#f59e0b';
+        else bar.style.background = 'var(--primary)';
+
+        var boxRollover = document.getElementById('boxRollover');
+        if (res.mingguan.sisaLalu > 0) {
+          boxRollover.style.display = 'inline-flex';
+          document.getElementById('valSisaLalu').textContent = '+' + formatRupiah(res.mingguan.sisaLalu);
+        } else {
+          boxRollover.style.display = 'none';
+        }
+      }
+
+      renderDashboardChart(res);
+      renderLaporanChart(res);
+      if (res.mingguan) {
+        renderGrafikMingguan(res.mingguan.evaluasi);
+      }
+    }
+
+    // Instan Load dengan Local Storage Caching
+    function muatUlangData(forceRefresh) {
+      var cachedDash = localStorage.getItem('fintrack_dash');
+      var cachedTrx = localStorage.getItem('fintrack_trx');
+
+      if (!forceRefresh && cachedDash && cachedTrx) {
+        try {
+          globalDashboard = JSON.parse(cachedDash);
+          globalTransaksi = JSON.parse(cachedTrx);
+          renderUIDashboard(globalDashboard);
           applyFilter();
           renderKategoriChart();
-          showToast("Data terbaru berhasil dimuat!", "success");
+        } catch(e) {}
+      }
+
+      showToast("Menyinkronkan data terbaru...", "loading");
+
+      // 1x Batch Fetch (action=init)
+      panggilAPI('init', null, function(res) {
+        if (res && res.success) {
+          globalDashboard = res.dashboard;
+          globalTransaksi = res.transaksi;
+
+          localStorage.setItem('fintrack_dash', JSON.stringify(res.dashboard));
+          localStorage.setItem('fintrack_trx', JSON.stringify(res.transaksi));
+
+          renderUIDashboard(res.dashboard);
+          applyFilter();
+          renderKategoriChart();
+          showToast("Data sinkron!", "success");
         } else {
-          showToast("Gagal memuat transaksi", "error");
+          showToast("Gagal memuat: " + (res.message || "Error"), "error");
         }
       }, function(err) {
-        showToast("Gagal transaksi: " + err, "error");
+        showToast("Koneksi lambat, memakai data lokal.", "error");
       });
     }
 
-    window.onload = muatUlangData;
+    window.onload = function() {
+      muatUlangData(false);
+    };
 
     function setFilter(tipe, btn) {
       activeFilter = tipe;
@@ -585,7 +600,7 @@
         panggilAPI('hapus', { sheetName: sheetName, rowIndex: rowIndex }, function(res) {
           if (res && res.success) {
             showToast(res.message, "success");
-            muatUlangData();
+            muatUlangData(true);
           } else {
             showToast("Gagal: " + res.message, "error");
           }
@@ -595,37 +610,67 @@
       }
     }
 
+    // Auto-Compressor: Kompresi gambar HP (5-10MB) menjadi < 200KB sebelum dikirim ke Gemini
     function prosesPilihBerkas(event) {
       var file = event.target.files[0];
       if (!file) return;
 
       var reader = new FileReader();
       reader.onload = function(e) {
-        var img = document.getElementById('imgPreviewNota');
-        img.src = e.target.result;
-        img.style.display = 'block';
+        var rawImg = new Image();
+        rawImg.onload = function() {
+          var canvas = document.createElement('canvas');
+          var maxDim = 1200;
+          var width = rawImg.width;
+          var height = rawImg.height;
 
-        var base64Data = e.target.result.split(',')[1];
-        showToast("AI Gemini sedang membaca nota & mengisi form...", "loading");
-        document.getElementById('btnSimpan').disabled = true;
-
-        panggilAPI('ocr', { base64Data: base64Data, mimeType: file.type }, function(res) {
-          document.getElementById('btnSimpan').disabled = false;
-          if (res && res.success && res.data) {
-            showToast("Nota terbaca! Silakan periksa kolom di bawah sebelum menyimpan.", "success");
-            if (res.data.tanggal) document.getElementById('inTanggal').value = res.data.tanggal;
-            if (res.data.jumlah) document.getElementById('inJumlah').value = res.data.jumlah;
-            if (res.data.deskripsi) document.getElementById('inDeskripsi').value = res.data.deskripsi;
-            if (res.data.subKategori) document.getElementById('inSubKategori').value = res.data.subKategori;
-            if (res.data.posAnggaran) document.getElementById('inPosAnggaran').value = res.data.posAnggaran;
-            if (res.data.metode) document.getElementById('inMetode').value = res.data.metode;
+          if (width > height) {
+            if (width > maxDim) {
+              height *= maxDim / width;
+              width = maxDim;
+            }
           } else {
-            showToast(res.message || "Silakan cek data manual.", "error");
+            if (height > maxDim) {
+              width *= maxDim / height;
+              height = maxDim;
+            }
           }
-        }, function(err) {
-          document.getElementById('btnSimpan').disabled = false;
-          showToast("Gagal membaca nota: " + err, "error");
-        });
+
+          canvas.width = width;
+          canvas.height = height;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(rawImg, 0, 0, width, height);
+
+          // Output JPEG kualitas 0.75 (Sangat ringan, teks tetap tajam)
+          var compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+          var base64Data = compressedDataUrl.split(',')[1];
+
+          var img = document.getElementById('imgPreviewNota');
+          img.src = compressedDataUrl;
+          img.style.display = 'block';
+
+          showToast("AI Gemini sedang membaca struk...", "loading");
+          document.getElementById('btnSimpan').disabled = true;
+
+          panggilAPI('ocr', { base64Data: base64Data, mimeType: 'image/jpeg' }, function(res) {
+            document.getElementById('btnSimpan').disabled = false;
+            if (res && res.success && res.data) {
+              showToast("Nota terbaca kilat! Silakan periksa.", "success");
+              if (res.data.tanggal) document.getElementById('inTanggal').value = res.data.tanggal;
+              if (res.data.jumlah) document.getElementById('inJumlah').value = res.data.jumlah;
+              if (res.data.deskripsi) document.getElementById('inDeskripsi').value = res.data.deskripsi;
+              if (res.data.subKategori) document.getElementById('inSubKategori').value = res.data.subKategori;
+              if (res.data.posAnggaran) document.getElementById('inPosAnggaran').value = res.data.posAnggaran;
+              if (res.data.metode) document.getElementById('inMetode').value = res.data.metode;
+            } else {
+              showToast(res.message || "Gagal ekstraksi teks.", "error");
+            }
+          }, function(err) {
+            document.getElementById('btnSimpan').disabled = false;
+            showToast("Gagal membaca nota: " + err, "error");
+          });
+        };
+        rawImg.src = e.target.result;
       };
       reader.readAsDataURL(file);
     }
@@ -654,7 +699,7 @@
           document.getElementById('inSubKategori').value = '';
           document.getElementById('inJumlah').value = '';
           document.getElementById('imgPreviewNota').style.display = 'none';
-          muatUlangData();
+          muatUlangData(true);
         } else {
           showToast(res.message, "error");
         }
